@@ -22,7 +22,7 @@ public class PreferredSizeClamp : UIBehaviour,ILayoutElement
                 int priority = -1;
                 foreach (var e in elements)
                 {
-                    if (e == this)
+                    if ((object)e == this)
                         continue;
                     if(e.layoutPriority > priority)
                     {

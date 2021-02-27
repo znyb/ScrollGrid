@@ -8,12 +8,18 @@ public enum ItemCacheType
     Scale
 }
 
+public interface IPoolItem
+{
+    void OnItemCreate();
+    void OnItemReuse();
+    void OnItemCache();
+}
+
 public class ItemPool<T>  where T : Component
 {
-    public RectTransform myParent;
+    public Transform myParent;
     public GameObject myItemPrefab;
     public ItemCacheType myCacheType;
-    public bool mySendMessage;
     public List<T> myInitItems;
     Queue<T> myCacheItems;
     List<T> myGetItems = new List<T>();
@@ -58,8 +64,8 @@ public class ItemPool<T>  where T : Component
                 trans.localScale = Vector3.one;
             }
             go.SetActive(true);
-            if (mySendMessage)
-                rt.SendMessage("OnItemCreate", SendMessageOptions.DontRequireReceiver);
+            if (rt is IPoolItem itme)
+                itme.OnItemCreate();
         }
 
         myGetItems.Add(rt);
@@ -78,8 +84,8 @@ public class ItemPool<T>  where T : Component
                 continue;
             }
             OnGet(rt);
-            if (mySendMessage)
-                rt.SendMessage("OnItemReuse", SendMessageOptions.DontRequireReceiver);
+            if (rt is IPoolItem item)
+                item.OnItemReuse();
             return rt;
         }
         return null;
@@ -89,8 +95,8 @@ public class ItemPool<T>  where T : Component
     {
         TryInit();
 
-        if (mySendMessage)
-            item.SendMessage("OnItemCache", SendMessageOptions.DontRequireReceiver);
+        if (item is IPoolItem poolItem)
+            poolItem.OnItemCache();
         OnCache(item);
         myGetItems.Remove(item);
         myCacheItems.Enqueue(item);
@@ -110,8 +116,8 @@ public class ItemPool<T>  where T : Component
 
         foreach (var item in myGetItems)
         {
-            if (mySendMessage)
-                item.SendMessage("OnItemCache", SendMessageOptions.DontRequireReceiver);
+            if (item is IPoolItem poolItem)
+                poolItem.OnItemCache();
             OnCache(item);
             myCacheItems.Enqueue(item);
         }
