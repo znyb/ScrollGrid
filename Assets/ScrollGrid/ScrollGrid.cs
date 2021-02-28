@@ -13,6 +13,11 @@ public class ScrollGrid : ScrollGrid<RectTransform>
     }
 }
 
+public interface IRectTransformProvider
+{
+    RectTransform rectTransform { get; }
+}
+
 public class ScrollGrid<T> : ScrollGridBase where T : Component
 {
     public event Action<int, T> OnFillItem;
@@ -21,6 +26,8 @@ public class ScrollGrid<T> : ScrollGridBase where T : Component
     public event Action<int, T> OnCacheItem;
 
     public event Action OnVisibleItemUpdate;
+
+    public bool myUseRectTransformCache = true;
 
     ItemPool<T> myItemPool;
 
@@ -120,18 +127,26 @@ public class ScrollGrid<T> : ScrollGridBase where T : Component
     Dictionary<T, RectTransform> rectTransformCache;
     protected virtual RectTransform GetRectTransform(T item)
     {
-        if (rectTransformCache == null)
-            rectTransformCache = new Dictionary<T, RectTransform>();
-        if(!rectTransformCache.TryGetValue(item,out var rect))
+        if (item is IRectTransformProvider provider)
+            return provider.rectTransform;
+
+        if (myUseRectTransformCache)
         {
-            rect = item.transform as RectTransform;
-            if(rect == null)
+            if (rectTransformCache == null)
+                rectTransformCache = new Dictionary<T, RectTransform>();
+            if (!rectTransformCache.TryGetValue(item, out var rect))
             {
-                Debug.LogError("item do not has RectTransform");
+                rect = item.transform as RectTransform;
+                if (rect == null)
+                {
+                    Debug.LogError("item do not has RectTransform");
+                }
+                rectTransformCache[item] = rect;
             }
-            rectTransformCache[item] = rect;
+            return rect;
         }
-        return rect;
+        else
+            return item.transform as RectTransform;
     }
 
     void CacheItem(int index,T item)
