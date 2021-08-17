@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,7 +11,7 @@ public class ExamplePanel : MonoBehaviour
     private void Awake()
     {
         myGrid.OnFillItem += MyGrid_OnFillItem;
-        for (int i = 0; i < 1000; i++)
+        for (int i = 0; i < 1000000; i++)
             myNums.Add(i);
     }
 

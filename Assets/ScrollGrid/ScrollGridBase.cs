@@ -8,12 +8,13 @@ using System;
 public class ScrollGridBase : ContentSizeFitGrid
 {
     public GameObject myItemPrefab;
+    public ItemCacheType myItemCacheType;
     public RectOffset myVisiblePadding = new RectOffset();
 
     protected int myCount;
     protected ScrollRect myScrollRect;
 
-    protected List<Vector2> myCellsPosition = new List<Vector2>();
+    protected Vector2[] myCellsPosition;
     protected List<int> myVisibleItemIndex = new List<int>();
 
     public Vector2 Size
@@ -118,7 +119,7 @@ public class ScrollGridBase : ContentSizeFitGrid
 
     public Vector2 CalcItemNormalizedPos(int index)
     {
-        index = Mathf.Clamp(index, 0, myCellsPosition.Count - 1);
+        index = Mathf.Clamp(index, 0, myCount - 1);
         var pos = myCellsPosition[index];
         Vector2 nPos = new Vector2();
         if (ScrollRect.vertical)
@@ -238,7 +239,8 @@ public class ScrollGridBase : ContentSizeFitGrid
 
     private void CalculateCellsPosition()
     {
-        myCellsPosition.Clear();
+        if (myCellsPosition == null || myCellsPosition.Length < myCount)
+            myCellsPosition = new Vector2[myCount];
 
         float width = rectTransform.rect.size.x;
         float height = rectTransform.rect.size.y;
@@ -289,16 +291,19 @@ public class ScrollGridBase : ContentSizeFitGrid
                 actualCellCountX * cellSize.x + (actualCellCountX - 1) * spacing.x,
                 actualCellCountY * cellSize.y + (actualCellCountY - 1) * spacing.y
                 );
-        Vector2 startOffset = new Vector2(
-                GetStartOffset(0, requiredSpace.x),
-                GetStartOffset(1, requiredSpace.y)
-                );
 
-        for (int i = 0; i < Count; i++)
+        float startOffsetX = GetStartOffset(0, requiredSpace.x);
+        float startOffsetY = GetStartOffset(1, requiredSpace.y);
+        float cellSizeX = cellSize[0];
+        float cellSizeY = cellSize[1];
+        float spacingX = spacing[0];
+        float spacingY = spacing[1];
+
+        for (int i = 0; i < myCount; i++)
         {
             int positionX;
             int positionY;
-            if (startAxis == Axis.Horizontal)
+            if (m_StartAxis == Axis.Horizontal)
             {
                 positionX = i % cellsPerMainAxis;
                 positionY = i / cellsPerMainAxis;
@@ -315,8 +320,8 @@ public class ScrollGridBase : ContentSizeFitGrid
                 positionY = actualCellCountY - 1 - positionY;
 
             //原点在左上
-            myCellsPosition.Add(new Vector2(startOffset.x + (cellSize[0] + spacing[0]) * positionX,
-                startOffset.y + (cellSize[1] + spacing[1]) * positionY));
+            myCellsPosition[i] = new Vector2(startOffsetX + (cellSizeX + spacingX) * positionX,
+                startOffsetY + (cellSizeY + spacingY) * positionY);
             //Debug.LogError(cellsPosition.Last());
         }
     }
@@ -359,10 +364,12 @@ public class ScrollGridBase : ContentSizeFitGrid
         visibleLeftBottom.y = contentSize.y - visibleLeftBottom.y;
         visibleRightTop.y = contentSize.y - visibleRightTop.y;
 
-        for(int i = 0;i < Count;i++)
+        bool vertical = myScrollRect.vertical;
+        bool horizontal = myScrollRect.horizontal;
+        for (int i = 0;i < myCount;i++)
         {
             bool visible = true;
-            if(myScrollRect.vertical)
+            if(vertical)
             {
                 if(myCellsPosition[i].y > visibleLeftBottom.y || myCellsPosition[i].y + cellSize.y < visibleRightTop.y)
                 {
@@ -370,7 +377,7 @@ public class ScrollGridBase : ContentSizeFitGrid
                 }
             }
 
-            if(visible && ScrollRect.horizontal)
+            if(visible && horizontal)
             {
                 if(myCellsPosition[i].x > visibleRightTop.x || myCellsPosition[i].x + cellSize.x < visibleLeftBottom.x)
                 {

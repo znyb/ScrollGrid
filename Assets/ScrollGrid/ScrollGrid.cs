@@ -42,6 +42,7 @@ public class ScrollGrid<T> : ScrollGridBase where T : Component
             {
                 myItemPool = new ItemPool<T>();
                 myItemPool.myItemPrefab = myItemPrefab;
+                myItemPool.myCacheType = myItemCacheType;
                 myItemPool.myParent = transform;
             }
             return myItemPool;
@@ -56,7 +57,7 @@ public class ScrollGrid<T> : ScrollGridBase where T : Component
         }
         myVisibleItems.Clear();
         myCount = 0;
-        myCellsPosition.Clear();
+        //myCellsPosition.Clear();
     }
 
     protected override void UpdateVisibleItems(bool clear)
