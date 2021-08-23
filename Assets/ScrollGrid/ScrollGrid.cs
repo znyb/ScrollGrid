@@ -78,10 +78,9 @@ public class ScrollGrid<T> : ScrollGridBase where T : Component
             }
         }
 
-        bool removeItem = false;
+        bool removeItem = myVisibleItems.Count > 0;
         foreach (var item in myVisibleItems)
         {
-            removeItem = true;
             CacheItem(item.Key, item.Value);
         }
         myVisibleItems.Clear();
@@ -100,25 +99,13 @@ public class ScrollGrid<T> : ScrollGridBase where T : Component
 
         foreach(int i in myVisibleItemIndex)
         {
-            myVisibleItems.Add(i, GetItem(i));
-        }
+            var item = GetItem(i);
+            myVisibleItems.Add(i, item);
 
-        foreach (var item in myVisibleItems)
-        {
-            RectTransform rect = GetRectTransform(item.Value);
-
-            m_Tracker.Add(this, rect,
-                DrivenTransformProperties.Anchors |
-                DrivenTransformProperties.AnchoredPosition |
-                DrivenTransformProperties.SizeDelta);
-
-            rect.anchorMin = Vector2.up;
-            rect.anchorMax = Vector2.up;
-            rect.sizeDelta = cellSize;
-
-            Vector2 pos = myCellsPosition[item.Key];
-            SetChildAlongAxis(rect, 0, pos[0], cellSize[0]);
-            SetChildAlongAxis(rect, 1, pos[1], cellSize[1]);
+            RectTransform rect = GetRectTransform(item);
+            Vector2 pos = GetCellsPosition(i);
+            SetChildAlongAxis(rect, 0, pos.x, m_CellSize.x);
+            SetChildAlongAxis(rect, 1, pos.y, m_CellSize.y);
         }
 
         if (OnVisibleItemUpdate != null)

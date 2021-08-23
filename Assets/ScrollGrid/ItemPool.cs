@@ -22,9 +22,9 @@ public class ItemPool<T>  where T : Component
     public ItemCacheType myCacheType;
     public List<T> myInitItems;
     Queue<T> myCacheItems;
-    List<T> myGetItems = new List<T>();
+    HashSet<T> myGetItems = new HashSet<T>();
 
-    public List<T> AllGetItems
+    public HashSet<T> AllGetItems
     {
         get
         {

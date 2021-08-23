@@ -11,6 +11,8 @@ public class ScrollGridBase : ContentSizeFitGrid
     public ItemCacheType myItemCacheType;
     public RectOffset myVisiblePadding = new RectOffset();
 
+    public bool myPreCalcCellPosition = false;
+
     protected int myCount;
     protected ScrollRect myScrollRect;
 
@@ -120,7 +122,7 @@ public class ScrollGridBase : ContentSizeFitGrid
     public Vector2 CalcItemNormalizedPos(int index)
     {
         index = Mathf.Clamp(index, 0, myCount - 1);
-        var pos = myCellsPosition[index];
+        var pos = GetCellsPosition(index);
         Vector2 nPos = new Vector2();
         if (ScrollRect.vertical)
         {
@@ -237,16 +239,17 @@ public class ScrollGridBase : ContentSizeFitGrid
 
     #endregion
 
+
+    int cellCountX = 1;
+    int cellCountY = 1;
+    int cellsPerMainAxis, actualCellCountX, actualCellCountY;
+    float startOffsetX, startOffsetY;
     private void CalculateCellsPosition()
     {
-        if (myCellsPosition == null || myCellsPosition.Length < myCount)
-            myCellsPosition = new Vector2[myCount];
 
         float width = rectTransform.rect.size.x;
         float height = rectTransform.rect.size.y;
 
-        int cellCountX = 1;
-        int cellCountY = 1;
         if (m_Constraint == Constraint.FixedColumnCount)
         {
             cellCountX = m_ConstraintCount;
@@ -273,7 +276,7 @@ public class ScrollGridBase : ContentSizeFitGrid
         int cornerX = (int)startCorner % 2;
         int cornerY = (int)startCorner / 2;
 
-        int cellsPerMainAxis, actualCellCountX, actualCellCountY;
+        
         if (startAxis == Axis.Horizontal)
         {
             cellsPerMainAxis = cellCountX;
@@ -292,37 +295,70 @@ public class ScrollGridBase : ContentSizeFitGrid
                 actualCellCountY * cellSize.y + (actualCellCountY - 1) * spacing.y
                 );
 
-        float startOffsetX = GetStartOffset(0, requiredSpace.x);
-        float startOffsetY = GetStartOffset(1, requiredSpace.y);
-        float cellSizeX = cellSize[0];
-        float cellSizeY = cellSize[1];
-        float spacingX = spacing[0];
-        float spacingY = spacing[1];
+        startOffsetX = GetStartOffset(0, requiredSpace.x);
+        startOffsetY = GetStartOffset(1, requiredSpace.y);
 
-        for (int i = 0; i < myCount; i++)
+        if (myPreCalcCellPosition)
+        {
+            if (myCellsPosition == null || myCellsPosition.Length < myCount)
+                myCellsPosition = new Vector2[myCount];
+
+            for (int i = 0; i < myCount; i++)
+            {
+                int positionX;
+                int positionY;
+                if (m_StartAxis == Axis.Horizontal)
+                {
+                    positionX = i % cellsPerMainAxis;
+                    positionY = i / cellsPerMainAxis;
+                }
+                else
+                {
+                    positionX = i / cellsPerMainAxis;
+                    positionY = i % cellsPerMainAxis;
+                }
+
+                if (cornerX == 1)
+                    positionX = actualCellCountX - 1 - positionX;
+                if (cornerY == 1)
+                    positionY = actualCellCountY - 1 - positionY;
+
+                //原点在左上
+                myCellsPosition[i] = new Vector2(startOffsetX + (m_CellSize.x + m_Spacing.x) * positionX,
+                    startOffsetY + (m_CellSize.y + m_Spacing.y) * positionY);
+                //Debug.LogError(cellsPosition.Last());
+            }
+        }
+    }
+
+    public Vector2 GetCellsPosition(int index)
+    {
+        if(myPreCalcCellPosition)
+        {
+            return myCellsPosition[index];
+        }
+        else
         {
             int positionX;
             int positionY;
             if (m_StartAxis == Axis.Horizontal)
             {
-                positionX = i % cellsPerMainAxis;
-                positionY = i / cellsPerMainAxis;
+                positionX = index % cellsPerMainAxis;
+                positionY = index / cellsPerMainAxis;
             }
             else
             {
-                positionX = i / cellsPerMainAxis;
-                positionY = i % cellsPerMainAxis;
+                positionX = index / cellsPerMainAxis;
+                positionY = index % cellsPerMainAxis;
             }
 
-            if (cornerX == 1)
+            if ((int)startCorner % 2 == 1)
                 positionX = actualCellCountX - 1 - positionX;
-            if (cornerY == 1)
+            if ((int)startCorner / 2 == 1)
                 positionY = actualCellCountY - 1 - positionY;
 
-            //原点在左上
-            myCellsPosition[i] = new Vector2(startOffsetX + (cellSizeX + spacingX) * positionX,
-                startOffsetY + (cellSizeY + spacingY) * positionY);
-            //Debug.LogError(cellsPosition.Last());
+            return new Vector2(startOffsetX + (m_CellSize.x + m_Spacing.x) * positionX,
+                startOffsetY + (m_CellSize.y + m_Spacing.y) * positionY);
         }
     }
 
@@ -364,31 +400,52 @@ public class ScrollGridBase : ContentSizeFitGrid
         visibleLeftBottom.y = contentSize.y - visibleLeftBottom.y;
         visibleRightTop.y = contentSize.y - visibleRightTop.y;
 
-        bool vertical = myScrollRect.vertical;
-        bool horizontal = myScrollRect.horizontal;
-        for (int i = 0;i < myCount;i++)
+        int hStart = Mathf.Clamp(Mathf.FloorToInt((visibleLeftBottom.x - m_Padding.left+ m_Spacing.x) / (m_CellSize.x + m_Spacing.x)),0,cellCountX);
+        int hEnd = Mathf.Clamp(Mathf.CeilToInt((visibleRightTop.x - m_Padding.left + m_Spacing.x) / (m_CellSize.x + m_Spacing.x)), 1, cellCountX);
+
+        int vStart = Mathf.Clamp(Mathf.FloorToInt((visibleRightTop.y - m_Padding.top + m_Spacing.y) / (m_CellSize.y + m_Spacing.y)),0,cellCountY);
+        int vEnd = Mathf.Clamp(Mathf.CeilToInt((visibleLeftBottom.y - m_Padding.top + m_Spacing.y) / (m_CellSize.y + m_Spacing.y)),1,cellCountY);
+
+        //Debug.Log($"scrollPos:{scrollPos.x},{scrollPos.y},cellCountX:{cellCountX},cellCountY:{cellCountY},hStart:{hStart},hEnd:{hEnd},vStart:{vStart},vEnd:{vEnd}");
+
+        if ((int)startCorner % 2 == 1)
         {
-            bool visible = true;
-            if(vertical)
-            {
-                if(myCellsPosition[i].y > visibleLeftBottom.y || myCellsPosition[i].y + cellSize.y < visibleRightTop.y)
-                {
-                    visible = false;
-                }
-            }
+            int temp = hStart;
+            hStart = cellCountX - hEnd;
+            hEnd = cellCountX - temp;
+        }
 
-            if(visible && horizontal)
-            {
-                if(myCellsPosition[i].x > visibleRightTop.x || myCellsPosition[i].x + cellSize.x < visibleLeftBottom.x)
-                {
-                    visible = false;
-                }
-            }
+        if ((int)startCorner / 2 == 1)
+        {
+            int temp = vStart;
+            vStart = cellCountY - vEnd;
+            vEnd = cellCountY - temp;
+        }
 
-            if(visible)
-            {
+        if (m_StartAxis == Axis.Vertical)
+        {
+            int temp = hStart;
+            hStart = vStart;
+            vStart = temp;
+
+            temp = hEnd;
+            hEnd = vEnd;
+            vEnd = temp;
+        }
+
+        vEnd--;
+        // 一个cellCountX行cellCountY列的表格
+        // 获取到其中第hStart行第vStart列和hEnd行vEnd列所包围的单元格索引
+        int end = vEnd * cellsPerMainAxis + hEnd;
+        if (myCount < end)
+            end = myCount;
+        int startCount = vStart * cellsPerMainAxis;
+        hStart += startCount;
+        hEnd += startCount;
+        for (; hStart < end; hStart += cellsPerMainAxis, hEnd += cellsPerMainAxis)
+        {
+            for (int i = hStart; i < hEnd && i < end; i++)
                 myVisibleItemIndex.Add(i);
-            }
         }
 
         UpdateVisibleItems(clear);
